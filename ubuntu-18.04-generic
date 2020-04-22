@@ -1,0 +1,32 @@
+#cloud-config
+
+write_files:
+
+- content: |
+    #!/bin/sh
+    adduser user --disabled-password --gecos ""
+    usermod -aG sudo user
+    ufw allow OpenSSH
+    ufw enable
+    rsync --archive --chown=user:user /root/.ssh /home/user
+    apt update
+    apt install -y apt-transport-https ca-certificates curl software-properties-common
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable"
+    apt update
+    apt -y install docker-ce python3-pip fail2ban git byobu python3-setuptools
+    pip3 install wheel
+    usermod -aG docker user
+    echo "user ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/nopasswd
+    su user -c byobu-enable
+    curl -L "https://github.com/docker/compose/releases/download/1.25.5/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    chmod +x /usr/local/bin/docker-compose
+    su user -c "git config --global user.email `whoami`@`hostname`; git config --global user.name `whoami`"
+
+
+  path: /cloud-init.sh
+  permissions: '0744'
+
+runcmd:
+ - [ /cloud-init.sh ]
+

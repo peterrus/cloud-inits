@@ -6,27 +6,46 @@ write_files:
     #!/bin/sh
     adduser user --disabled-password --gecos ""
     usermod -aG sudo user
+    rsync --archive --chown=user:user /root/.ssh /home/user
+    echo "user ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/nopasswd
+
+    apt update
+    apt install -y  apt-transport-https ca-certificates curl software-properties-common python3-pip fail2ban git \
+                    byobu python3-setuptools vim update-notifier-common
+    apt -y install 
+    pip3 install wheel
+    
     ufw allow OpenSSH
     ufw enable
-    rsync --archive --chown=user:user /root/.ssh /home/user
-    apt update
-    apt install -y apt-transport-https ca-certificates curl software-properties-common
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
-    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable"
-    apt update
-    apt -y install docker-ce python3-pip fail2ban git byobu python3-setuptools vim
-    pip3 install wheel
-    usermod -aG docker user
-    echo "user ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/nopasswd
+
     su user -c byobu-enable
-    curl -L "https://github.com/docker/compose/releases/download/1.25.5/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
     su user -c "git config --global user.email `whoami`@`hostname`; git config --global user.name `whoami`"
 
+    echo 'Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";' >> /etc/apt/apt.conf.d/50unattended-upgrades
+    echo 'Unattended-Upgrade::Remove-Unused-Dependencies "true";' >> /etc/apt/apt.conf.d/50unattended-upgrades
+    echo 'Unattended-Upgrade::Automatic-Reboot "true";' >> /etc/apt/apt.conf.d/50unattended-upgrades
+    echo 'Unattended-Upgrade::Automatic-Reboot-Time "04:00";' >> /etc/apt/apt.conf.d/50unattended-upgrades
+
+    echo "Running unattended upgrades"
+    unattended-upgrades
 
   path: /cloud-init.sh
   permissions: '0744'
   
+- content: |
+    APT::Periodic::Update-Package-Lists "1";
+    APT::Periodic::Unattended-Upgrade "1";
+
+  path: /etc/apt/apt.conf.d/20auto-upgrades
+  permissions: '0755'
+
+- content: |
+    I forgot to set the MOTD...
+
+  owner: root:root
+  path: /etc/motd
+  permissions: '0700'
+
 - content: |
     filetype plugin indent on
     " show existing tab with 4 spaces width
@@ -37,11 +56,14 @@ write_files:
     set expandtab
     " On pressing backspace, remove 4 spaces
     set softtabstop=4
+    " line numbers
+    set number
+    " bind jk to esc
+    imap jk <Esc>
     
-  owner: user:user
-  path: /home/user/.vimrc
-  permissions: '0600'
+  owner: root:root
+  path: /etc/skel/.vimrc
+  permissions: '0700'
 
 runcmd:
  - [ /cloud-init.sh ]
-
